@@ -1,0 +1,18 @@
+name: paradise_gate
+description: A Flutter Quran App
+
+publish_to: "none"
+
+environment:
+  sdk: ">=2.17.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audioplayers: ^5.2.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/audio/

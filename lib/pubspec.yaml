@@ -10,9 +10,4 @@ dependencies:
   flutter:
     sdk: flutter
   audioplayers: ^5.2.1
-
-dependencies:
-  flutter:
-    sdk: flutter
-  audioplayers: ^5.2.1
   http: ^1.2.0

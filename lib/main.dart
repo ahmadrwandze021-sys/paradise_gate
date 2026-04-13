@@ -1,4 +1,3 @@
-import 'audio_player.dart';
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 
@@ -44,13 +43,14 @@ class SurahList extends StatelessWidget {
           return Card(
             margin: const EdgeInsets.all(8),
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15)),
+              borderRadius: BorderRadius.circular(15),
+            ),
             child: ListTile(
               leading: CircleAvatar(
                 child: Text("${index + 1}"),
               ),
               title: Text(surahs[index]),
-              subtitle: const Text("Tap to open"),
+              subtitle: const Text("Tap to play"),
               onTap: () {
                 Navigator.push(
                   context,
@@ -67,6 +67,24 @@ class SurahList extends StatelessWidget {
   }
 }
 
+// ================= AUDIO SERVICE (FIXED) =================
+
+class QuranAudioPlayer {
+  static final AudioPlayer _player = AudioPlayer();
+
+  static Future<void> playSurah(int number) async {
+    await _player.stop();
+
+    await _player.play(
+      AssetSource('audio/$number.mp3'),
+    );
+  }
+
+  static Future<void> stop() async {
+    await _player.stop();
+  }
+}
+
 // ================= PLAYER PAGE =================
 
 class PlayerPage extends StatefulWidget {
@@ -78,7 +96,6 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  final player = AudioPlayer();
   String selectedReciter = "Alafasy";
 
   final List<String> reciters = [
@@ -89,12 +106,8 @@ class _PlayerPageState extends State<PlayerPage> {
     "Husary"
   ];
 
-  void playAudio() async {
-    await player.stop();
-    await player.play(
-      AssetSource(
-          'audio/${widget.surahNumber}.mp3'), // same audio for now
-    );
+  void playAudio() {
+    QuranAudioPlayer.playSurah(widget.surahNumber);
   }
 
   void chooseReciter() {
@@ -106,8 +119,8 @@ class _PlayerPageState extends State<PlayerPage> {
             return ListTile(
               title: Text(r),
               trailing: selectedReciter == r
-                  ? const Icon(Icons.radio_button_checked)
-                  : const Icon(Icons.radio_button_off),
+                  ? const Icon(Icons.check)
+                  : const Icon(Icons.circle_outlined),
               onTap: () {
                 setState(() {
                   selectedReciter = r;
@@ -128,39 +141,42 @@ class _PlayerPageState extends State<PlayerPage> {
         title: Text("Surah ${widget.surahNumber}"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.graphic_eq),
+            icon: const Icon(Icons.person),
             onPressed: chooseReciter,
           )
         ],
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 20),
-
-          // Audio Control Card
-          Card(
-            margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Text(
-                    "Reciter: $selectedReciter",
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: playAudio,
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text("Play"),
-                  ),
-                ],
-              ),
+      body: Center(
+        child: Card(
+          margin: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(25),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "Reciter: $selectedReciter",
+                  style: const TextStyle(fontSize: 18),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: playAudio,
+                  icon: const Icon(Icons.play_arrow),
+                  label: const Text("Play Surah"),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: QuranAudioPlayer.stop,
+                  icon: const Icon(Icons.stop),
+                  label: const Text("Stop"),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main() {
   runApp(const MyApp());
@@ -10,14 +12,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: "Paradise Gate",
-      theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xffF5F5F5),
-        primaryColor: Colors.deepPurple,
-      ),
-      home: const SurahList(),
+      home: SurahList(),
     );
   }
 }
@@ -29,28 +26,21 @@ class SurahList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    List<String> surahs =
+    final List<String> surahs =
         List.generate(114, (i) => "Surah ${i + 1}");
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Quran"),
+        title: const Text("Quran Player"),
         centerTitle: true,
       ),
       body: ListView.builder(
         itemCount: 114,
         itemBuilder: (context, index) {
           return Card(
-            margin: const EdgeInsets.all(8),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
             child: ListTile(
-              leading: CircleAvatar(
-                child: Text("${index + 1}"),
-              ),
+              leading: CircleAvatar(child: Text("${index + 1}")),
               title: Text(surahs[index]),
-              subtitle: const Text("Tap to play"),
               onTap: () {
                 Navigator.push(
                   context,
@@ -67,25 +57,7 @@ class SurahList extends StatelessWidget {
   }
 }
 
-// ================= AUDIO SERVICE (FIXED) =================
-
-class QuranAudioPlayer {
-  static final AudioPlayer _player = AudioPlayer();
-
-  static Future<void> playSurah(int number) async {
-    await _player.stop();
-
-    await _player.play(
-      AssetSource('audio/$number.mp3'),
-    );
-  }
-
-  static Future<void> stop() async {
-    await _player.stop();
-  }
-}
-
-// ================= PLAYER PAGE =================
+// ================= PLAYER =================
 
 class PlayerPage extends StatefulWidget {
   final int surahNumber;
@@ -96,42 +68,49 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  String selectedReciter = "Alafasy";
+  final AudioPlayer player = AudioPlayer();
 
-  final List<String> reciters = [
-    "Alafasy",
-    "Sudais",
-    "Shuraim",
-    "Ghamdi",
-    "Husary"
-  ];
+  String? audioUrl;
+  bool loading = true;
 
-  void playAudio() {
-    QuranAudioPlayer.playSurah(widget.surahNumber);
+  @override
+  void initState() {
+    super.initState();
+    loadAudio();
   }
 
-  void chooseReciter() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return ListView(
-          children: reciters.map((r) {
-            return ListTile(
-              title: Text(r),
-              trailing: selectedReciter == r
-                  ? const Icon(Icons.check)
-                  : const Icon(Icons.circle_outlined),
-              onTap: () {
-                setState(() {
-                  selectedReciter = r;
-                });
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        );
-      },
-    );
+  // 🔥 FETCH FROM GITHUB DB
+  Future<void> loadAudio() async {
+    try {
+      final url =
+          "https://raw.githubusercontent.com/w-coding/Quran-Database-Timings/main/data.json";
+
+      final response = await http.get(Uri.parse(url));
+      final data = json.decode(response.body);
+
+      // ⚠️ adjust depending on your JSON structure
+      String link = data["surahs"][widget.surahNumber.toString()];
+
+      setState(() {
+        audioUrl = link;
+        loading = false;
+      });
+    } catch (e) {
+      setState(() {
+        loading = false;
+      });
+    }
+  }
+
+  void playAudio() async {
+    if (audioUrl == null) return;
+
+    await player.stop();
+    await player.play(UrlSource(audioUrl!));
+  }
+
+  void stopAudio() {
+    player.stop();
   }
 
   @override
@@ -139,44 +118,29 @@ class _PlayerPageState extends State<PlayerPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Surah ${widget.surahNumber}"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: chooseReciter,
-          )
-        ],
       ),
       body: Center(
-        child: Card(
-          margin: const EdgeInsets.all(20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(25),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  "Reciter: $selectedReciter",
-                  style: const TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: playAudio,
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text("Play Surah"),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton.icon(
-                  onPressed: QuranAudioPlayer.stop,
-                  icon: const Icon(Icons.stop),
-                  label: const Text("Stop"),
-                ),
-              ],
-            ),
-          ),
-        ),
+        child: loading
+            ? const CircularProgressIndicator()
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    audioUrl == null
+                        ? "No Audio Found"
+                        : "Ready to Play",
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: playAudio,
+                    child: const Text("Play"),
+                  ),
+                  ElevatedButton(
+                    onPressed: stopAudio,
+                    child: const Text("Stop"),
+                  ),
+                ],
+              ),
       ),
     );
   }
